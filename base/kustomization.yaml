@@ -4,3 +4,9 @@ resources:
 - service.yaml
 - statefulset.yaml
 - storage.yaml
+configMapGenerator:
+# generate a ConfigMap named my-java-server-props-<some-hash> where each file
+# in the list appears as a data entry (keyed by base filename).
+- name: scripts
+  files:
+  - check_node_health.sh
