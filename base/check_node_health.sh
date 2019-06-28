@@ -1,4 +1,4 @@
-set -exo pipefail # -e exits on error, and -o (for option) pipefail exits on command pipe failures.
+set -ex # -e exits on error
 
 usage() { echo "Usage: $0 <rpc_endpoint> <max_lag_in_seconds> <last_synced_block_file>]" 1>&2; exit 1; }
 
@@ -13,7 +13,8 @@ fi
 block_number_request='{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
 block_number_response=$(curl -H 'Content-Type: application/json' -X POST --data "$block_number_request" ${rpc_endpoint})
 
-block_number_hex=$(echo "$block_number_response" | jq -r '.result')
+# -r: print raw output, -n: don't read any input, --argjson data: create variable data with passed json as value
+block_number_hex=$(jq -r -n --argjson data "${block_number_response}" '$data.result')
 
 if [ -z "${block_number_hex}" ] || [ "${block_number_hex}" == "null" ]; then
     echo "Block number returned by the node is empty or null"
