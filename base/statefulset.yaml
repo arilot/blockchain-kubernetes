@@ -31,9 +31,9 @@ spec:
             memory: "12000Mi"
         ports:
         - containerPort: 8545
-          name: web-socket
-        - containerPort: 8546
           name: jsonrpc
+        - containerPort: 8546
+          name: web-socket
         - containerPort: 30303
           protocol: UDP
         volumeMounts:
