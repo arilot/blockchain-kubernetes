@@ -56,6 +56,50 @@ data:
     log_file = "/data/parity.log"
     color = true
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: scripts
+data:
+  check_node_health.sh: |
+    set -exo pipefail # -e exits on error, and -o (for option) pipefail exits on command pipe failures.
+
+    usage() { echo "Usage: $0 <rpc_endpoint> <max_lag_in_seconds> <last_synced_block_file>]" 1>&2; exit 1; }
+
+    rpc_endpoint="$1"
+    max_lag_in_seconds="$2"
+    last_synced_block_file="$3"
+
+    if [ -z "${rpc_endpoint}" ] || [ -z "${max_lag_in_seconds}" ] || [ -z "${last_synced_block_file}" ]; then
+        usage
+    fi
+
+    block_number_request='{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}'
+    block_number_response=$(curl -H 'Content-Type: application/json' -X POST --data "$block_number_request" ${rpc_endpoint})
+
+    block_number_hex=$(echo "$block_number_response" | jq -r '.result')
+
+    if [ -z "${block_number_hex}" ] || [ "${block_number_hex}" == "null" ]; then
+        echo "Block number returned by the node is empty or null"
+        exit 1
+    fi
+
+    if [ ! -f ${last_synced_block_file} ]; then
+        old_block_number_hex="";
+    else
+        old_block_number_hex=$(cat ${last_synced_block_file});
+    fi;
+
+    if [ "${block_number_hex}" != "${old_block_number_hex}" ]; then
+      mkdir -p $(dirname "${last_synced_block_file}")
+      echo ${block_number_hex} > ${last_synced_block_file}
+    fi
+
+    file_age=$(($(date +%s) - $(date -r ${last_synced_block_file} +%s)));
+    max_age=${max_lag_in_seconds};
+    echo "${last_synced_block_file} age is $file_age seconds. Max healthy age is $max_age seconds";
+    if [ ${file_age} -lt ${max_age} ]; then exit 0; else exit 1; fi
+---
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
@@ -97,8 +141,22 @@ spec:
         volumeMounts:
         - name: parity-config
           mountPath: /config
+        - name: scripts
+          mountPath: /scripts
         - name: eth-mount
           mountPath: /data
+        livenessProbe:
+          exec:
+            command:
+            - /bin/sh
+            - /scripts/check_node_health.sh
+            - http://127.0.0.1:8545
+            - "300"
+            - last_synced_block.txt
+          initialDelaySeconds: 300
+          periodSeconds: 300
+          timeoutSeconds: 10
+          failureThreshold: 2
       initContainers:
       - name: setup
         image: busybox
@@ -109,7 +167,10 @@ spec:
       volumes:
         - name: parity-config
           configMap:
-            name: parity-config 
+            name: parity-config
+        - name: scripts
+          configMap:
+            name: scripts
         - name: eth-mount
           persistentVolumeClaim:
             claimName: eth-regional-pvc
