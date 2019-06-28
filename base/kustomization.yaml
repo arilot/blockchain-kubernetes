@@ -10,3 +10,6 @@ configMapGenerator:
 - name: scripts
   files:
   - check_node_health.sh
+- name: parity-config
+  files:
+  - parity.toml
