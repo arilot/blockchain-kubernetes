@@ -1,0 +1,8 @@
+nameSuffix: "-prod-1"
+commonLabels:
+  app: eth-app-prod-1
+bases:
+- ../../base
+patchesStrategicMerge:
+- ilb.yaml
+- statefulset.yaml

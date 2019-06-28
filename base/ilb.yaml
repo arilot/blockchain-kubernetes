@@ -1,0 +1,16 @@
+# use this to aggregate internal pods behind
+# a single load balanced IP
+apiVersion: v1
+kind: Service
+metadata:
+  name: eth-ilb
+  annotations:
+    cloud.google.com/load-balancer-type: "Internal"
+spec:
+  type: LoadBalancer
+  ports:
+  - protocol: TCP
+    port: 8546
+    targetPort: 8546
+    port: 8545
+    targetPort: 8545
